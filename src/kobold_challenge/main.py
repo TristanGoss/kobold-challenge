@@ -54,24 +54,24 @@ def main():
     # Next, let's calculate the separation between these rock types at all relevant points.
     # We use a 100m resolution, whcih results in a roughly 4k raster, and 200m separation resolution,
     # which is adequate to map out the probability curve.
-    with tools.timer("calculating rock type separation at 100m spatial, 200m separation resolution"):
-        sepmap, transform = tools.calculate_fine_separation(
+    with tools.timer("calculating rock type separation at 100m spatial, 500m separation resolution"):
+        sep_map, transform = tools.calculate_fine_separation(
             gdf=bedrock_data,
             is_rock_a_col_name='is_serpentinite_or_ultramafic',
             is_rock_b_col_name='is_granodiorite',
             max_separation_m=max_separation_m,
             raster_resolution_m=100,
-            separation_resolution_m=200,
+            separation_resolution_m=500,
         )
 
     # Let's save that to file so we can use it later / in other software.
     epsg = bedrock_data.crs.to_epsg()
     tools.save_raster_to_disk(
-        sepmap, transform, epsg, "cobalt_rock_separation.tif")
+        sep_map, transform, epsg, "cobalt_rock_separation.tif")
 
     # Next, we want to convert this separation to probability.
-    # Let's use a simple sigmoid for this.
-    cobalt_map = tools.simple_sigmoid(sepmap, max_separation_m)
+    # Let's use a simple sigmoid for this, with a steepness that will produce an interesting heatmap
+    cobalt_map = tools.simple_sigmoid(sep_map, max_separation_m, steepness=0.5e-3)
 
     # Let's save this result as well.
     tools.save_raster_to_disk(

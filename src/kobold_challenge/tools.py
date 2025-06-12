@@ -7,7 +7,9 @@ from typing import Optional, Tuple
 
 from affine import Affine
 import contextily as ctx
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import geopandas as gpd
 from rapidfuzz.fuzz import partial_ratio
@@ -18,11 +20,14 @@ import shapely
 
 log = logging.getLogger(__name__)
 
+KM_TICK_FORMATTER = mticker.FuncFormatter(lambda x, _: f"{x / 1000:.0f}")
+PLOT_FONT_SIZE = 24
+
 
 def _save_matplotlib_to_bytes(fig: plt.Figure) -> bytes:
     """Save a Matplotlib figure to bytes as a png."""
     buffer = BytesIO()
-    fig.savefig(buffer, bbox_inches='tight', pad_inches=0)
+    fig.savefig(buffer, bbox_inches='tight', pad_inches=0.2)
     buffer.seek(0)
     return buffer.read()
 
@@ -119,17 +124,31 @@ def visualise_adjacent_rocks(
 
     fig, ax = plt.subplots(figsize=(20,20))
 
-    gpd.GeoSeries(is_rock_a_geom, crs=gdf.crs).plot(ax=ax, color='blue', alpha=plot_alpha)
-    gpd.GeoSeries(is_rock_b_geom, crs=gdf.crs).plot(ax=ax, color='red', alpha=plot_alpha)
-    gpd.GeoSeries(max_separation_poly, crs=gdf.crs).plot(ax=ax, color='green', alpha=plot_alpha)
+    gpd.GeoSeries(is_rock_a_geom, crs=gdf.crs).plot(
+        ax=ax, color='blue', alpha=plot_alpha)
+    gpd.GeoSeries(is_rock_b_geom, crs=gdf.crs).plot(
+        ax=ax, color='red', alpha=plot_alpha)
+    gpd.GeoSeries(max_separation_poly, crs=gdf.crs).plot(
+        ax=ax, color='green', alpha=plot_alpha)
+    
+    # Manually define legend handles
+    legend_handles = [
+        mpatches.Patch(color='blue', label=is_rock_a_col_name),
+        mpatches.Patch(color='red', label=is_rock_b_col_name),
+        mpatches.Patch(color='green', label=f'areas within {max_separation_m / 1e3} km of both.')
+    ]
 
     ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron, crs=gdf.crs)
 
-    ax.set_title(plot_title, fontsize=14)
+    ax.set_title(plot_title, fontsize=PLOT_FONT_SIZE)
     fig.tight_layout()
     ax.grid()
-    ax.set_xlabel(f' EPSG:{gdf.crs.to_epsg()} X (m)')
-    ax.set_ylabel(f' EPSG:{gdf.crs.to_epsg()} Y (m)')
+    ax.legend(handles=legend_handles, fontsize=PLOT_FONT_SIZE)
+    ax.set_xlabel(f' EPSG:{gdf.crs.to_epsg()} X (km)', fontsize=PLOT_FONT_SIZE)
+    ax.set_ylabel(f' EPSG:{gdf.crs.to_epsg()} Y (km)', fontsize=PLOT_FONT_SIZE)
+    ax.tick_params(axis='both', labelsize=PLOT_FONT_SIZE)
+    ax.xaxis.set_major_formatter(KM_TICK_FORMATTER)
+    ax.yaxis.set_major_formatter(KM_TICK_FORMATTER)
 
     return _save_matplotlib_to_bytes(fig)
 
@@ -297,12 +316,17 @@ def visualise_geotiff(
         alpha=plot_alpha
     )
 
-    ax.set_title(plot_title, fontsize=14)
+    ax.set_title(plot_title, fontsize=PLOT_FONT_SIZE)
     fig.tight_layout()
     ax.grid()
-    ax.set_xlabel(f' EPSG:{crs_epsg} X (m)')
-    ax.set_ylabel(f' EPSG:{crs_epsg} Y (m)')
-    fig.colorbar(img, ax=ax, label=colorbar_label)
+    ax.set_xlabel(f' EPSG:{crs_epsg} X (km)', fontsize=PLOT_FONT_SIZE)
+    ax.set_ylabel(f' EPSG:{crs_epsg} Y (km)', fontsize=PLOT_FONT_SIZE)
+    ax.tick_params(axis='both', labelsize=PLOT_FONT_SIZE)
+    ax.xaxis.set_major_formatter(KM_TICK_FORMATTER)
+    ax.yaxis.set_major_formatter(KM_TICK_FORMATTER)
+    cbar = fig.colorbar(img, ax=ax)
+    cbar.set_label(colorbar_label, fontsize=PLOT_FONT_SIZE)
+    cbar.ax.tick_params(labelsize=PLOT_FONT_SIZE)
 
     return _save_matplotlib_to_bytes(fig)
 
@@ -330,6 +354,7 @@ def simple_sigmoid(dist: np.ndarray, max_dist: float, steepness: float = np.nan)
     # work out a sensible steepness if not provided:
     if np.isnan(steepness):
         steepness = 2 / max_dist * np.log((1 / 1e-3)-1)
+        log.debug(f'calculated steepness as {steepness}')
     output = np.zeros(dist.shape)
     output[dist <= max_dist] = 1 / (1 + np.exp(steepness*(dist[dist <= max_dist].ravel()-max_dist/2)))
     return output.reshape(dist.shape)
