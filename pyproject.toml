@@ -1,0 +1,29 @@
+[project]
+name = "kobold-challenge"
+version = "0.1.0"
+description = "Response to KoBold Metals interview challenge"
+authors = [
+    {name = "Tristan Goss",email = "tristanjdgoss@gmail.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "geopandas (>=1.1.0,<2.0.0)",
+    "shapely (>=2.1.1,<3.0.0)",
+    "matplotlib (>=3.10.3,<4.0.0)",
+    "rapidfuzz (>=3.13.0,<4.0.0)",
+    "contextily (>=1.6.2,<2.0.0)",
+    "rasterio (>=1.4.3,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+ipynb = "^0.5.1"
+ipykernel = "^6.29.5"
+notebook = "^7.4.3"
+
