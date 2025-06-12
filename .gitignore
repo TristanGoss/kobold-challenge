@@ -194,6 +194,6 @@ cython_debug/
 .cursorindexingignore
 
 # Kobold challenge specific
-.gpkg
-.tif
-.geotiff
+*.gpkg
+*.tif
+*.geotiff
