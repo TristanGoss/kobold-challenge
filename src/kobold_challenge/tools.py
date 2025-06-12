@@ -19,6 +19,14 @@ import shapely
 log = logging.getLogger(__name__)
 
 
+def _save_matplotlib_to_bytes(fig: plt.Figure) -> bytes:
+    """Save a Matplotlib figure to bytes as a png."""
+    buffer = BytesIO()
+    fig.savefig(buffer, bbox_inches='tight', pad_inches=0)
+    buffer.seek(0)
+    return buffer.read()
+
+
 def classify_rock_type(
         gdf: gpd.GeoDataFrame,
         type: str,
@@ -123,10 +131,7 @@ def visualise_adjacent_rocks(
     ax.set_xlabel(f' EPSG:{gdf.crs.to_epsg()} X (m)')
     ax.set_ylabel(f' EPSG:{gdf.crs.to_epsg()} Y (m)')
 
-    buffer = BytesIO()
-    fig.savefig(buffer)
-    buffer.seek(0)
-    return buffer.read()
+    return _save_matplotlib_to_bytes(fig)
 
 
 def calculate_fine_separation(
@@ -299,10 +304,7 @@ def visualise_geotiff(
     ax.set_ylabel(f' EPSG:{crs_epsg} Y (m)')
     fig.colorbar(img, ax=ax, label=colorbar_label)
 
-    buffer = BytesIO()
-    fig.savefig(buffer)
-    buffer.seek(0)
-    return buffer.read()
+    return _save_matplotlib_to_bytes(fig)
 
 
 def simple_sigmoid(dist: np.ndarray, max_dist: float, steepness: float = np.nan) -> np.ndarray:

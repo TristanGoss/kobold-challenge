@@ -25,6 +25,8 @@ def main():
     # We want to identify areas that may contain Cobalt.
     # Cobalt is found in (amongst many other places) regions where serpentinite
     # and other ultramafic rocks are close to granodiorite rocks.
+    # Try passing fuzzy_match_pct=80 to the below function to uncover some other deposits, perhaps?
+    # That would need discussion with a geologist.
     # To identify these regions, we must first correctly classify the bedrock polygons:
     with tools.timer("classifying the rock types"):
         for rock_type in ['serpentinite', 'granodiorite', 'ultramafic']:
@@ -50,16 +52,16 @@ def main():
                     max_separation_m=max_separation_m))
         
     # Next, let's calculate the separation between these rock types at all relevant points.
-    # We use a 100m resolution, whcih results in a roughly 4k raster, and 500m separation resolution,
+    # We use a 100m resolution, whcih results in a roughly 4k raster, and 200m separation resolution,
     # which is adequate to map out the probability curve.
-    with tools.timer("calculating rock type separation at 100m spatial, 500m separation resolution"):
+    with tools.timer("calculating rock type separation at 100m spatial, 200m separation resolution"):
         sepmap, transform = tools.calculate_fine_separation(
             gdf=bedrock_data,
             is_rock_a_col_name='is_serpentinite_or_ultramafic',
             is_rock_b_col_name='is_granodiorite',
             max_separation_m=max_separation_m,
             raster_resolution_m=100,
-            separation_resolution_m=500,
+            separation_resolution_m=200,
         )
 
     # Let's save that to file so we can use it later / in other software.
@@ -91,11 +93,11 @@ def main():
     # We simply open the GeoTIFF and perform a nearest neighbour lookup.
     # This is adequate because our raster resolution is already 100m,
     # and other issues may restrict core drilling at resolutions lower than this.
-    query_x, query_y = 550e3, 5.6e6
+    query_x, query_y = 540e3, 5.6e6
     with rasterio.open("cobalt_likelihood.tif") as src:
         value = next(src.sample([(query_x, query_y)]))[0]
 
-    log.info(f'probability of finding Cobalt at x={query_x}, y={query_y} in EPSG {epsg} is {value:.2f}')
+    log.info(f'likelihood of finding Cobalt at x={query_x}, y={query_y} in EPSG {epsg} is {value:.2f}')
 
 
 if __name__ == "__main__":
