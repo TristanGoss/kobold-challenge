@@ -22,7 +22,9 @@ The map is provided here as a shapefile (BedrockP.shp). BedrockP.shp consists of
 My response to this challenge is provided in the form of a python package designed to be installed using the python package manager [Poetry](https://python-poetry.org/).
 
 To install my solution, first install Poetry, then clone this repository and run `poetry install --only main`.
-
 If instead you want to develop it (or run the Jupyter notebooks), then instead run `poetry install --with dev`.
 
 ## Use
+To run the solution, place the `BedrockP.gpkg` file in the working directory and run `poetry run challenge`. This simple script shows how to use the provided tools.
+
+In order to return the solution quickly, I have not provided a full UI or full unit tests.

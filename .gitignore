@@ -197,3 +197,4 @@ cython_debug/
 *.gpkg
 *.tif
 *.geotiff
+*.png

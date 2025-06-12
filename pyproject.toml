@@ -5,6 +5,7 @@ description = "Response to KoBold Metals interview challenge"
 authors = [
     {name = "Tristan Goss",email = "tristanjdgoss@gmail.com"}
 ]
+packages = [{ include = "kobold_challenge", from = "src" }]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.13"
@@ -27,3 +28,5 @@ ipynb = "^0.5.1"
 ipykernel = "^6.29.5"
 notebook = "^7.4.3"
 
+[tool.poetry.scripts]
+challenge = "kobold_challenge.main:main"
