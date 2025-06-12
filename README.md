@@ -24,7 +24,15 @@ My response to this challenge is provided in the form of a python package design
 To install my solution, first install Poetry, then clone this repository and run `poetry install --only main`.
 If instead you want to develop it (or run the Jupyter notebooks), then instead run `poetry install --with dev`.
 
-## Use
+### Use
 To run the solution, place the `BedrockP.gpkg` file in the working directory and run `poetry run challenge`. This simple script shows how to use the provided tools.
 
 In order to return the solution quickly, I have not provided a full UI.
+
+### Algorithm description
+The algorithm in use is as follows:
+1. Use fuzzy text matching across all columns within the provided geopackage to classify individual polygons based on user requiremnts. Polygons classified as each rock type are then unioned to produce one large multipolygon for each rock type of interest. Basic polygon set operations are used to handle the serpentinite vs “ultramafic” issue.
+2. Sticking with polygons, we buffer (i.e. dilate / morphologically open) the boundaries of the two rock types by half the maximum separation, then intersect the two. This provides a multipolygon covering all points of relevance to the remainder of the algorithm.
+3. To compute the heatmap, we first rasterise the intersection of the buffered rock type boundaries and assign all pixels outside of that intersection multipolygon a value of NaN. All pixels within it are assigned a value of the maximum separation distance.
+4. We then reduce the buffer distance and repeat the rasterisation of the intersection polygon a number of times, assigning all pixels covered by the new, smaller intersection polygon a progressively reducing separation distance each time. Working with pixels in this way ensures we will never have floating point errors associated with adjacent polygons. At the end of this process, all pixels have been assigned a valid separation distance (between the two rock types). The calculation is not exact, but it avoids the expensive calculation of distances between pixels and polygons, instead using polygon rasterisation algorithms only.
+5. We then bulk convert the separation distances into Cobalt deposit likelihoods, and generate two figures; a png for human consumption and a GeoTIFF for machine or other tool use. As the GeoTIFF is ~4k resolution, there is easily enough accuracy for a simple nearest neighbour lookup to be adequate for later use.
