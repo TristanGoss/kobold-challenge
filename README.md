@@ -29,6 +29,16 @@ To run the solution, place the `BedrockP.gpkg` file in the working directory and
 
 In order to return the solution quickly, I have not provided a full UI.
 
+### Quality
+Ruff linting is in place (autoformat with `poetry run ruff format .` and link with `poetry run ruff check --fix .`), but as per the instructions, no other quality steps have been completed, nor have any unit tests be provided. Things that would need to happen to make this code production-ready:
+- Unit tests
+- Much more interaction with the end user to understand what they want
+- Adopting the linting, documentation and naming standards of the rest of the codebase
+- Improved error management, in line with the rest of the codebase
+- Integration into existing system and integration tests.
+- Peer review
+- QA approval
+
 ### Algorithm description
 The algorithm in use is as follows:
 1. Use fuzzy text matching across all columns within the provided geopackage to classify individual polygons based on user requirements. Polygons classified as each rock type are then unioned to produce one large multipolygon for each rock type of interest. Basic polygon set operations are used to handle the "serpentinite" vs “ultramafic” issue.

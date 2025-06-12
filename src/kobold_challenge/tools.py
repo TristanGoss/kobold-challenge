@@ -1,26 +1,27 @@
 """Main module for my response to the KoBold challenge."""
+
+import logging
 from contextlib import contextmanager
 from io import BytesIO
-import logging
 from time import perf_counter
 from typing import Optional, Tuple
 
-from affine import Affine
 import contextily as ctx
+import geopandas as gpd
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
-import geopandas as gpd
-from rapidfuzz.fuzz import partial_ratio
 import rasterio
-from rasterio.features import rasterize
 import rasterio.transform
 import shapely
+from affine import Affine
+from rapidfuzz.fuzz import partial_ratio
+from rasterio.features import rasterize
 
 log = logging.getLogger(__name__)
 
-KM_TICK_FORMATTER = mticker.FuncFormatter(lambda x, _: f"{x / 1000:.0f}")
+KM_TICK_FORMATTER = mticker.FuncFormatter(lambda x, _: f'{x / 1000:.0f}')
 PLOT_FONT_SIZE = 24
 
 
@@ -33,10 +34,8 @@ def _save_matplotlib_to_bytes(fig: plt.Figure) -> bytes:
 
 
 def classify_rock_type(
-        gdf: gpd.GeoDataFrame,
-        type: str,
-        fuzzy_match_pct: Optional[float] = None,
-        new_col_name: Optional[str] = None) -> gpd.GeoDataFrame:
+    gdf: gpd.GeoDataFrame, type: str, fuzzy_match_pct: Optional[float] = None, new_col_name: Optional[str] = None
+) -> gpd.GeoDataFrame:
     """Append a boolean column to a GeoDataFrame of bedrock polygons indicating a particular type of rock.
 
     Uses fuzzy matching to capture mistyped or differently described versions of the rock.
@@ -52,35 +51,40 @@ def classify_rock_type(
     new_col_name: Optional[str]
         The name of the column added to the dataframe before it is returned,
         indicating that a row matches the type parameter in one or more columns.
-    Returns
+
+    Returns:
     -------
     gpd.GeoDataFrame
         an augmented version of the input GeoDataFrame with an additional column indicating a classified rock.
     """
+    perfect_match_pct = 100
     if fuzzy_match_pct is not None:
-        assert 0 < fuzzy_match_pct <= 100, f"fuzzy_match_pct must be between 0 and 100 but was {fuzzy_match_pct}"
+        assert 0 < fuzzy_match_pct <= perfect_match_pct, \
+            f'fuzzy_match_pct must be between 0 and 100 but was {fuzzy_match_pct}'
     else:
-        fuzzy_match_pct = 100
+        fuzzy_match_pct = perfect_match_pct
 
     if new_col_name is None:
         new_col_name = f'is_{type}'
 
     gdf[new_col_name] = gdf.map(
-        lambda cell: isinstance(cell, str) and partial_ratio(
-            type, cell, processor=lambda x: x.lower()) >= fuzzy_match_pct).any(axis=1)
+        lambda cell: isinstance(cell, str)
+        and partial_ratio(type, cell, processor=lambda x: x.lower()) >= fuzzy_match_pct
+    ).any(axis=1)
 
     log.debug(f'matched {gdf[new_col_name].sum()} of {len(gdf)} rows at a fuzzy match percentage of {fuzzy_match_pct}')
 
     return gdf
 
 
-def visualise_adjacent_rocks(
-        gdf: gpd.GeoDataFrame,
-        is_rock_a_col_name: str,
-        is_rock_b_col_name: str,
-        max_separation_m: float,
-        plot_alpha: float = 0.5,
-        plot_title: str = "Rock adjacency visualisation") -> bytes:
+def visualise_adjacent_rocks(  # noqa: PLR0913
+    gdf: gpd.GeoDataFrame,
+    is_rock_a_col_name: str,
+    is_rock_b_col_name: str,
+    max_separation_m: float,
+    plot_alpha: float = 0.7,
+    plot_title: str = 'Rock adjacency visualisation',
+) -> bytes:
     """Visualise adjacent rock types within a geodataframe of bedrock polygons.
 
     The result is saved as a png, and returned as bytes.
@@ -100,17 +104,17 @@ def visualise_adjacent_rocks(
         A value between 0 and 1 determining the transparency of the polygons on the plots
     plot_title: str
         The title of the plot.
-    
-    Returns
+
+    Returns:
     -------
     bytes
         The png image generated as bytes, which can then be saved to file.
     """
-    assert is_rock_a_col_name in gdf.columns, "is_rock_a_col_name not in gdf.columns"
-    assert is_rock_b_col_name in gdf.columns, "is_rock_b_col_name not in gdf.columns"
+    assert is_rock_a_col_name in gdf.columns, 'is_rock_a_col_name not in gdf.columns'
+    assert is_rock_b_col_name in gdf.columns, 'is_rock_b_col_name not in gdf.columns'
 
-    assert gdf.crs is not None, "GeoDataFrame has no CRS defined"
-    assert all(axis.unit_name == "metre" for axis in gdf.crs.axis_info), "CRS is not in meters"
+    assert gdf.crs is not None, 'GeoDataFrame has no CRS defined'
+    assert all(axis.unit_name == 'metre' for axis in gdf.crs.axis_info), 'CRS is not in meters'
 
     assert gdf.crs.to_epsg() is not None, "GeoDataFrame's CRS cannot be converted into an EPSG code"
 
@@ -118,24 +122,20 @@ def visualise_adjacent_rocks(
     is_rock_b_geom = gdf.loc[gdf[is_rock_b_col_name], 'geometry'].union_all()
 
     max_separation_poly = shapely.intersection(
-        is_rock_a_geom.buffer(max_separation_m / 2),
-        is_rock_b_geom.buffer(max_separation_m / 2)
+        is_rock_a_geom.buffer(max_separation_m / 2), is_rock_b_geom.buffer(max_separation_m / 2)
     )
 
-    fig, ax = plt.subplots(figsize=(20,20))
+    fig, ax = plt.subplots(figsize=(20, 20))
 
-    gpd.GeoSeries(is_rock_a_geom, crs=gdf.crs).plot(
-        ax=ax, color='blue', alpha=plot_alpha)
-    gpd.GeoSeries(is_rock_b_geom, crs=gdf.crs).plot(
-        ax=ax, color='red', alpha=plot_alpha)
-    gpd.GeoSeries(max_separation_poly, crs=gdf.crs).plot(
-        ax=ax, color='green', alpha=plot_alpha)
-    
+    gpd.GeoSeries(is_rock_a_geom, crs=gdf.crs).plot(ax=ax, color='blue', alpha=plot_alpha)
+    gpd.GeoSeries(is_rock_b_geom, crs=gdf.crs).plot(ax=ax, color='red', alpha=plot_alpha)
+    gpd.GeoSeries(max_separation_poly, crs=gdf.crs).plot(ax=ax, color='green', alpha=plot_alpha)
+
     # Manually define legend handles
     legend_handles = [
         mpatches.Patch(color='blue', label=is_rock_a_col_name),
         mpatches.Patch(color='red', label=is_rock_b_col_name),
-        mpatches.Patch(color='green', label=f'areas within {max_separation_m / 1e3} km of both.')
+        mpatches.Patch(color='green', label=f'areas within {max_separation_m / 1e3} km of both.'),
     ]
 
     ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron, crs=gdf.crs)
@@ -153,13 +153,14 @@ def visualise_adjacent_rocks(
     return _save_matplotlib_to_bytes(fig)
 
 
-def calculate_fine_separation(
-        gdf: gpd.GeoDataFrame,
-        is_rock_a_col_name: str,
-        is_rock_b_col_name: str,
-        max_separation_m: float,
-        raster_resolution_m: float,
-        separation_resolution_m: float) -> Tuple[np.ndarray, Affine]:
+def calculate_fine_separation(  # noqa: PLR0913
+    gdf: gpd.GeoDataFrame,
+    is_rock_a_col_name: str,
+    is_rock_b_col_name: str,
+    max_separation_m: float,
+    raster_resolution_m: float,
+    separation_resolution_m: float,
+) -> Tuple[np.ndarray, Affine]:
     """Calculate the separation between two types of rock at all points within the bounds of the provided GeoDataFrame.
 
     The result is returned as a raster dataset.
@@ -182,7 +183,7 @@ def calculate_fine_separation(
         The resolution in meters at which the separation is quantised for calculation speed.
         Appropriate values are typically one tenth to one hundredth max_resolution_m
 
-    Returns
+    Returns:
     -------
     np.ndarray
         A grid which records the separation between the two kinds
@@ -190,23 +191,22 @@ def calculate_fine_separation(
     Affine
         The affine transform mapping the raster into the crs of the provided gdf.
     """
-    assert is_rock_a_col_name in gdf.columns, "is_rock_a_col_name not in gdf.columns"
-    assert is_rock_b_col_name in gdf.columns, "is_rock_b_col_name not in gdf.columns"
+    assert is_rock_a_col_name in gdf.columns, 'is_rock_a_col_name not in gdf.columns'
+    assert is_rock_b_col_name in gdf.columns, 'is_rock_b_col_name not in gdf.columns'
 
-    assert gdf.crs is not None, "GeoDataFrame has no CRS defined"
-    assert all(axis.unit_name == "metre" for axis in gdf.crs.axis_info), "CRS is not in meters"
+    assert gdf.crs is not None, 'GeoDataFrame has no CRS defined'
+    assert all(axis.unit_name == 'metre' for axis in gdf.crs.axis_info), 'CRS is not in meters'
 
     assert gdf.crs.to_epsg() is not None, "GeoDataFrame's CRS cannot be converted into an EPSG code"
 
-    assert raster_resolution_m > 0, "raster_resolution_m must be greater than zero"
-    assert separation_resolution_m > 0, "separation_resolution_m must be greater than zero"
+    assert raster_resolution_m > 0, 'raster_resolution_m must be greater than zero'
+    assert separation_resolution_m > 0, 'separation_resolution_m must be greater than zero'
 
     is_rock_a_geom = gdf.loc[gdf[is_rock_a_col_name], 'geometry'].union_all()
     is_rock_b_geom = gdf.loc[gdf[is_rock_b_col_name], 'geometry'].union_all()
 
     max_separation_poly = shapely.intersection(
-        is_rock_a_geom.buffer(max_separation_m / 2),
-        is_rock_b_geom.buffer(max_separation_m / 2)
+        is_rock_a_geom.buffer(max_separation_m / 2), is_rock_b_geom.buffer(max_separation_m / 2)
     )
 
     # use this polygon to establish bounds for the separation map
@@ -234,15 +234,11 @@ def calculate_fine_separation(
     # that buffer a lower separation value / higher probability
     for d in sorted(separation_levels_m, reverse=True):
         is_rock_types_within_distance_poly = shapely.intersection(
-            is_rock_a_geom.buffer(d / 2),
-            is_rock_b_geom.buffer(d / 2)
+            is_rock_a_geom.buffer(d / 2), is_rock_b_geom.buffer(d / 2)
         )
 
         is_rock_types_within_distance_raster = rasterize(
-            [(is_rock_types_within_distance_poly, 1)],
-            out_shape=sepmap.shape,
-            transform=sepmap_transform,
-            dtype="uint8"
+            [(is_rock_types_within_distance_poly, 1)], out_shape=sepmap.shape, transform=sepmap_transform, dtype='uint8'
         )
 
         # update pixel values covered by this polygon
@@ -253,20 +249,21 @@ def calculate_fine_separation(
     return sepmap, sepmap_transform
 
 
-def visualise_geotiff(
-        raster: rasterio.DatasetReader,
-        transform: Affine,
-        crs_epsg: str,
-        plot_title: str,
-        colorbar_label: str,
-        plot_alpha: float = 0.5,
-        colormap: str = "plasma_r",
-        contextily_zoom: Optional[int] = None) -> bytes:
+def visualise_geotiff(  # noqa: PLR0913
+    raster: rasterio.DatasetReader,
+    transform: Affine,
+    crs_epsg: str,
+    plot_title: str,
+    colorbar_label: str,
+    plot_alpha: float = 0.7,
+    colormap: str = 'plasma_r',
+    contextily_zoom: Optional[int] = None,
+) -> bytes:
     """Generate a png image visualising a GeoTIFF.
 
     This plot is intended for human consumption / use in presentations, not for machine use.
     Lower probability values are faded through to transparent so as not to ide the context map.
-    
+
     Parameters
     ----------
     raster: np.ndarray
@@ -286,7 +283,7 @@ def visualise_geotiff(
     contextily_zoom: Optioanl[int]
         The zoom level to use for the plot background.
 
-    Returns
+    Returns:
     -------
     bytes
         A rendered png image
@@ -311,9 +308,9 @@ def visualise_geotiff(
     img = ax.imshow(
         heatmap_for_plotting,
         extent=(minx, maxx, miny, maxy),  # note different order to bounds!
-        origin="upper",
+        origin='upper',
         cmap=cmap,
-        alpha=plot_alpha
+        alpha=plot_alpha,
     )
 
     ax.set_title(plot_title, fontsize=PLOT_FONT_SIZE)
@@ -333,9 +330,9 @@ def visualise_geotiff(
 
 def simple_sigmoid(dist: np.ndarray, max_dist: float, steepness: float = np.nan) -> np.ndarray:
     """Simple sigmoid function.
-    
+
     Used to convert rock separation distance into likelihood.
-    
+
     Parameters
     ----------
     dist: np.ndarray
@@ -346,32 +343,32 @@ def simple_sigmoid(dist: np.ndarray, max_dist: float, steepness: float = np.nan)
         The k parameter, allowing the tuning of the sigmoid. If one is not provided,
         a "sensible" k will be inferred from max_dist.
 
-    Returns
+    Returns:
     -------
     np.ndarray
         A numpy array with the same shape as dist containing values in between 0 and 1.
     """
     # work out a sensible steepness if not provided:
     if np.isnan(steepness):
-        steepness = 2 / max_dist * np.log((1 / 1e-3)-1)
+        steepness = 2 / max_dist * np.log((1 / 1e-3) - 1)
         log.debug(f'calculated steepness as {steepness}')
     output = np.zeros(dist.shape)
-    output[dist <= max_dist] = 1 / (1 + np.exp(steepness*(dist[dist <= max_dist].ravel()-max_dist/2)))
+    output[dist <= max_dist] = 1 / (1 + np.exp(steepness * (dist[dist <= max_dist].ravel() - max_dist / 2)))
     return output.reshape(dist.shape)
 
 
 @contextmanager
-def timer(label: str = ""):
-    """A simple timer implemented as a context manager"""
+def timer(label: str = ''):
+    """A simple timer implemented as a context manager."""
     start = perf_counter()
     yield
     end = perf_counter()
-    log.info(f"{label} Elapsed: {(end - start)*1e3:.2f} ms")
+    log.info(f'{label} Elapsed: {(end - start) * 1e3:.2f} ms')
 
 
 def save_raster_to_disk(raster: np.ndarray, transform: Affine, crs_epsg: str, filename: str) -> None:
     """Save a raster to disk as a GeoTIFF.
-    
+
     Parameters
     ----------
     raster: np.ndarray
@@ -391,6 +388,6 @@ def save_raster_to_disk(raster: np.ndarray, transform: Affine, crs_epsg: str, fi
         count=1,
         dtype='float32',
         crs=crs_epsg,
-        transform=transform
+        transform=transform,
     ) as dataset:
         dataset.write(raster, 1)
